@@ -23,7 +23,6 @@ const client = new Client({
 const allowedCommands = ['!teste-repo', '!teste-info']
 
 client.on('ready', () => {
-  //Quando bot estiver funcionando efetua o console.log.
   console.log('O bot está no ar!')
 })
 
@@ -39,31 +38,52 @@ client.on('messageCreate', message => {
     const args = message.content.split(' ') //Divide a mensagem em argumentos separados por espaço.
 
     if (args.length < 2) {
-      //Verifica se tem pelo menos dois argumentos depois do comando "!github".
       message.reply(
-        'Por favor, forneça um nome de usuário do GitHub após o comando !github' // Se não houver, responde com uma mensagem solicitando o nome de usuário do GitHub.
+        'Por favor, forneça um nome de usuário do GitHub após o comando !github'
       )
-      return //Interrompendo a função.
+      return
     }
-    const user = args[1] // Armazena o segundo argumento (nome de usuário do GitHub) em uma variável "user"
-
-    axios // Faz uma requisição GET à API usando Axios do GitHub com o nome de usuário especificado.
+    const user = args[1]
+    axios
       .get(`https://api.github.com/users/${user}`)
-
       .then(response => {
-        // Armazena os dados retornados pela API em uma variável "githubUser"
         const githubUser = response.data
-
         message.reply(
-          // Envia uma mensagem com informações sobre o usuário do GitHub
           `Nome de usuário: ${githubUser.login}\nNome completo: ${githubUser.name}\nLocalização: ${githubUser.location}\nRepositórios: ${githubUser.public_repos}\nSeguidores: ${githubUser.followers}\nSeguindo: ${githubUser.following}`
         )
       })
       .catch(error => {
-        // Se houver um erro na requisição, imprime o erro no console.
         console.error(error)
         message.reply(
           `Não foi possível encontrar informações sobre o usuário "${user}"`
+        )
+      })
+  }
+  if (message.content.startsWith('!repos')) {
+    const args = message.content.split(' ')
+    if (args.length < 2) {
+      message.reply(
+        'Por favor, forneça um nome de usuário do GitHub após o comando !repos'
+      )
+      return
+    }
+    const user = args[1]
+    axios
+      .get(`https://api.github.com/users/${user}/repos`)
+      .then(response => {
+        const githubRepos = response.data
+        let reposInfo = ''
+        githubRepos.map(repo => {
+          reposInfo += `Nome: ${repo.name}\nURL: ${repo.html_url}\n\n`
+        })
+        message.reply(
+          `Informações dos repositórios do usuário ${user}:\n\n${reposInfo}`
+        )
+      })
+      .catch(error => {
+        console.error(error)
+        message.reply(
+          `Não foi possível encontrar repositórios do usuário "${user}"`
         )
       })
   }

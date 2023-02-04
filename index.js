@@ -20,15 +20,23 @@ const client = new Client({
   ],
 })
 
+const allowedCommands = ['!teste-repo', '!teste-info']
+
 client.on('ready', () => {
   console.log('O bot está no ar!')
 })
 
 client.on('messageCreate', message => {
-  if (message.author.bot) return
+  //Evento que é efetuado sempre que uma mensagem é enviada ao servidor.
+  if (message.author.bot) return //Verifica se a mensagem é enviada por um bot ou usuário, caso for bot, a função é interrompida.
 
-  if (message.content.startsWith('!github')) {
-    const args = message.content.split(' ')
+  const messageVerify = message.content.split(' ')[0].split('-')[1] === 'info'
+
+  if (messageVerify) {
+    //Verifica se a mensagem é "!github".
+
+    const args = message.content.split(' ') //Divide a mensagem em argumentos separados por espaço.
+
     if (args.length < 2) {
       message.reply(
         'Por favor, forneça um nome de usuário do GitHub após o comando !github'
@@ -81,4 +89,58 @@ client.on('messageCreate', message => {
   }
 })
 
-client.login(process.env.TOKEN)
+async function getInfoUserGithub(params) {
+  try {
+    const response = await axios.get(`https://api.github.com/users/${params}`)
+
+    if (response.status === 200) {
+      return response.data
+    } else {
+      throw new Error(
+        `Erro ao buscar informações sobre o usuário "${params}" (código de erro: ${response.status})`
+      )
+    }
+  } catch (error) {
+    return message.reply(
+      `Não foi possível encontrar informações sobre o usuário "${params}": ${error.message}`
+    )
+  }
+}
+
+client.on('messageCreate', async message => {
+  if (message.author.bot) return
+
+  const messageVerify = message.content.split(' ')[0]
+  const user = message.content.split(' ')[1]
+
+  if (!allowedCommands.includes(messageVerify)) {
+    return message.reply(
+      'A mensagem não está no formato correto. Por favor, tente alguns desses comando: \n' +
+        allowedCommands
+          .map(allowedCommand => allowedCommand.split(',')[0])
+          .join(', ')
+    )
+  }
+
+  if (!user) {
+    return message.reply(
+      'Não consigo buscar se você não escrever o nome do usuário.'
+    )
+  }
+
+  const userRepo = await getInfoUserGithub(`${user}/repos`)
+
+  if (userRepo.length === 0) {
+    return message.reply(
+      `Não foram encontrados repositórios para o usuário "${user}".`
+    )
+  }
+
+  message.reply(
+    `Repositórios encontrados para o usuário "${user}": ${userRepo.map(
+      event => '\n\n' + event.name
+    )}`
+  )
+})
+
+client.login(process.env.TOKEN) // Faz o login do bot com o token dentro de .env

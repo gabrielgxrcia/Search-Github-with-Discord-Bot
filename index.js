@@ -22,7 +22,7 @@ const client = new Client({
 
 const allowedCommands = ['!teste-repo', '!teste-info']
 
-async function getInfoUserGithub(params) {
+async function getInfoUserGithub(message, params) {
   try {
     const response = await axios.get(`https://api.github.com/users/${params}`)
 
@@ -44,32 +44,22 @@ function codeBlockJs(macaco) {
   return `\`\`\`js\n${macaco}\n\`\`\``
 }
 
-client.on('messageCreate', async message => {
-  if (message.author.bot || message.channel.id !== '1071482066073559120') return
+async function handleInfoCommand(message) {
+  const messageParts = message.content.split(' ')
+  const command = messageParts[0]
+  const username = messageParts[1]
 
-  const messageVerify = message.content.split(' ')[0]
-  const user = message.content.split(' ')[1]
+  if (!command.endsWith('-info')) return
 
-  if (messageVerify.split('-')[1] !== 'info') return
-
-  if (!allowedCommands.includes(messageVerify)) {
-    return message.reply(
-      'A mensagem não está no formato correto. Por favor, tente alguns desses comando: \n' +
-        allowedCommands
-          .map(allowedCommand => allowedCommand.split(',')[0])
-          .join(', ')
-    )
-  }
-
-  if (!user) {
+  if (!username) {
     return message.reply(
       'Não consigo buscar se você não escrever o nome do usuário.'
     )
   }
 
-  const githubUser = await getInfoUserGithub(`${user}`)
+  const githubUser = await getInfoUserGithub(message, username)
 
-  const profileInformation = `{\n\tNomeDeUsuario: '${githubUser.login}'\n\tNomeCompleto: '${githubUser.name}'\n\tLocalizacao: '${githubUser.location}'\n\tRepositorio: ${githubUser.public_repos}\n\tSeguidores: ${githubUser.followers}\n\tSeguindo: ${githubUser.following}\n\tAtividadedeCommits: '${githubUser.commit_activity}' \n}`
+  const profileInformation = `{\n\tNomeDeUsuario: '${githubUser.login}'\n\tNomeCompleto: '${githubUser.name}'\n\tLocalizacao: '${githubUser.location}'\n\tRepositorios: ${githubUser.public_repos}\n\tSeguidores: ${githubUser.followers}\n\tSeguindo: ${githubUser.following}\n\tAtividadedeCommits: '${githubUser.commit_activity}' \n}`
 
   message.channel.send({
     files: [
@@ -81,32 +71,21 @@ client.on('messageCreate', async message => {
   })
 
   message.reply(codeBlockJs(profileInformation))
-})
+}
 
-client.on('messageCreate', async message => {
-  if (message.author.bot || message.channel.id !== '1071482066073559120') return
+async function handleRepoCommand(message) {
+  const messageParts = message.content.split(' ')
+  const command = messageParts[0]
+  const username = messageParts[1]
 
-  const messageVerify = message.content.split(' ')[0]
-  const user = message.content.split(' ')[1]
+  if (!command.endsWith('-repo')) return
 
-  if (messageVerify.split('-')[1] !== 'repo') return
-
-  if (!allowedCommands.includes(messageVerify)) {
-    return message.reply(
-      'A mensagem não está no formato correto. Por favor, tente alguns desses comando: \n' +
-        allowedCommands
-          .map(allowedCommand => allowedCommand.split(',')[0])
-          .join(', ')
-    )
-  }
-
-  if (!user) {
+  if (!username) {
     return message.reply(
       'Não consigo buscar se você não escrever o nome do usuário.'
     )
   }
-
-  const userRepo = await getInfoUserGithub(`${user}/repos`)
+  const userRepo = await getInfoUserGithub(message, `${username}/repos`)
 
   // [] fazer verificação se usuário existe
 
@@ -125,6 +104,26 @@ client.on('messageCreate', async message => {
   message.channel.send(`Os repositórios são: \`\`\`js
 const infoRepositorio = \n[\n${info}\n];
     \`\`\``)
+}
+
+client.on('messageCreated', () => {
+  const command = message.content.split(' ')[0]
+
+  if (!allowedCommands.includes(command)) {
+    return message.reply(
+      'A mensagem não está no formato correto. Por favor, tente alguns desses comando: \n' +
+        allowedCommands
+          .map(allowedCommand => allowedCommand.split(',')[0])
+          .join(', ')
+    )
+  }
+})
+
+client.on('messageCreate', message => {
+  if (message.author.bot || message.channel.id !== '1071482066073559120') return
+
+  handleInfoCommand(message)
+  handleRepoCommand(message)
 })
 
 client.login(process.env.TOKEN)

@@ -22,60 +22,109 @@ const client = new Client({
 
 const allowedCommands = ['!teste-repo', '!teste-info']
 
+async function getInfoUserGithub(params) {
+  try {
+    const response = await axios.get(`https://api.github.com/users/${params}`)
+
+    if (response.status === 200) {
+      return response.data
+    } else {
+      throw new Error(
+        `Erro ao buscar informações sobre o usuário "${params}" (código de erro: ${response.status})`
+      )
+    }
+  } catch (error) {
+    return message.reply(
+      `Não foi possível encontrar informações sobre o usuário "${params}": ${error.message}`
+    )
+  }
+}
+
 function codeBlockJs(macaco) {
-  return '```js\n' + macaco + '\n```'
+  return `\`\`\`js\n${macaco}\n\`\`\``
 }
 
 client.on('messageCreate', async message => {
-  if (message.author.bot || message.channel.id !== '1071141346406039684') return
+  if (message.author.bot || message.channel.id !== '1071482066073559120') return
 
   const messageVerify = message.content.split(' ')[0]
   const user = message.content.split(' ')[1]
 
+  if (messageVerify.split('-')[1] !== 'info') return
+
   if (!allowedCommands.includes(messageVerify)) {
     return message.reply(
-      codeBlockJs(
-        'A mensagem não está no formato correto. Por favor, tente alguns desses comandos: \n' +
-          allowedCommands.join(', ')
-      )
+      'A mensagem não está no formato correto. Por favor, tente alguns desses comando: \n' +
+        allowedCommands
+          .map(allowedCommand => allowedCommand.split(',')[0])
+          .join(', ')
     )
   }
 
   if (!user) {
     return message.reply(
-      codeBlockJs('Não consigo buscar se você não escrever o nome do usuário.')
+      'Não consigo buscar se você não escrever o nome do usuário.'
     )
   }
 
-  const type = messageVerify.split('-')[1]
+  const githubUser = await getInfoUserGithub(`${user}`)
 
-  try {
-    const response = await axios.get(`https://api.github.com/users/${user}`)
+  const profileInformation = `{\n\tNomeDeUsuario: '${githubUser.login}'\n\tNomeCompleto: '${githubUser.name}'\n\tLocalizacao: '${githubUser.location}'\n\tRepositorio: ${githubUser.public_repos}\n\tSeguidores: ${githubUser.followers}\n\tSeguindo: ${githubUser.following}\n\tAtividadedeCommits: '${githubUser.commit_activity}' \n}`
 
-    if (response.status !== 200) {
-      return message.reply(
-        codeBlockJs(
-          `Não foi possível encontrar informações sobre o usuário "${user}" (código de erro: ${response.status})`
-        )
-      )
-    }
+  message.channel.send({
+    files: [
+      {
+        attachment: githubUser.avatar_url,
+        name: `${githubUser.login}.jpg`,
+      },
+    ],
+  })
 
-    const githubUser = response.data
+  message.reply(codeBlockJs(profileInformation))
+})
 
-    if (type === 'info') {
-      const profileInformation = `'Nome de usuário': ${githubUser.login}\n'Nome completo': ${githubUser.name}\n'Localização': ${githubUser.location}\n'Repositórios': ${githubUser.public_repos}\n'Seguidores': ${githubUser.followers}\n'Seguindo': ${githubUser.following}\n'Atividade de Commits: ${githubUser.commit_activity}`
-      message.channel.send(
-        `<img src="${githubUser.avatar_url}" alt="Avatar de ${githubUser.login}" width="100"/>`
-      )
-      message.channel.send(codeBlockJs(profileInformation))
-    }
-  } catch (error) {
+client.on('messageCreate', async message => {
+  if (message.author.bot || message.channel.id !== '1071482066073559120') return
+
+  const messageVerify = message.content.split(' ')[0]
+  const user = message.content.split(' ')[1]
+
+  if (messageVerify.split('-')[1] !== 'repo') return
+
+  if (!allowedCommands.includes(messageVerify)) {
     return message.reply(
-      codeBlockJs(
-        `Não foi possível encontrar informações sobre o usuário "${user}": ${error.message}`
-      )
+      'A mensagem não está no formato correto. Por favor, tente alguns desses comando: \n' +
+        allowedCommands
+          .map(allowedCommand => allowedCommand.split(',')[0])
+          .join(', ')
     )
   }
+
+  if (!user) {
+    return message.reply(
+      'Não consigo buscar se você não escrever o nome do usuário.'
+    )
+  }
+
+  const userRepo = await getInfoUserGithub(`${user}/repos`)
+
+  // [] fazer verificação se usuário existe
+
+  const list = userRepo.map(repo => ({
+    name: repo.name,
+    html_url: repo.html_url,
+  }))
+
+  const info = list
+    .map(
+      item =>
+        `\t{\n\t\tname: "${item.name}"\n\t\thtml_url: "${item.html_url}"\n\t}`
+    )
+    .join(',\n')
+
+  message.channel.send(`Os repositórios são: \`\`\`js
+const infoRepositorio = \n[\n${info}\n];
+    \`\`\``)
 })
 
 client.login(process.env.TOKEN)
